@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::Duration;
 use std::io;

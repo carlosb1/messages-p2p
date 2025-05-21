@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 use libp2p::{
     identity, PeerId, Multiaddr,
@@ -6,10 +7,11 @@ use libp2p::{
     noise, tcp, yamux,
     swarm::{Swarm, SwarmEvent, NetworkBehaviour},
 };
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 use futures::StreamExt;
 use crate::p2p::config::{Config, load_config, print_config, DEFAULT_TOPIC};
 use crate::p2p::behaviours::{build_gossipsub_behaviour, build_kademlia_behaviour};
+use crate::p2p::handlers::{MessageHandler, SimpleClientHandler};
 
 #[derive(NetworkBehaviour)]
 pub struct NodeBehaviour {
@@ -17,21 +19,40 @@ pub struct NodeBehaviour {
     pub gossipsub: gossipsub::Behaviour,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ChatCommand {
     Subscribe(String),
     Publish(String, Vec<u8>),
+    Quit,
 }
 
-pub struct ClientNode {
+pub struct ClientNode<H: MessageHandler> {
     peer_id: PeerId,
     swarm: Swarm<NodeBehaviour>,
     command_rx: mpsc::Receiver<ChatCommand>,
     command_tx: mpsc::Sender<ChatCommand>,
+    handler: H
 }
 
-impl ClientNode {
-    pub fn from_config(node_config: Config) -> anyhow::Result<Self> {
+pub fn run_node() -> anyhow::Result<Arc<Mutex<ClientNode<SimpleClientHandler>>>> {
+    let handler = crate::p2p::handlers::SimpleClientHandler::default();
+    let mut node = std::sync::Arc::new(Mutex::new(ClientNode::new(handler)?));
+
+    // Spawn the background node task
+    let node_runner = node.clone();
+    tokio::spawn(async move {
+        node_runner
+            .lock()
+            .await
+            .run()
+            .await
+            .expect("Background node failed");
+    });
+    Ok(node.clone())
+}
+
+impl<H: MessageHandler> ClientNode<H>{
+    pub fn from_config(node_config: Config, handler: H) -> anyhow::Result<Self> {
         // bootstrap info
         let server_peer_id: PeerId = node_config.bootstrap.peer_id.parse()?;
         let server_addr: Multiaddr = node_config.bootstrap.address.parse()?;
@@ -69,25 +90,26 @@ impl ClientNode {
             peer_id: client_peer_id,
             swarm,
             command_rx: rx,
-            command_tx: tx.clone()
+            command_tx: tx.clone(),
+            handler
         })
     }
 
 
-    pub fn from_config_path(path: String) -> anyhow::Result<Self> {
+    pub fn from_config_path(path: String, handler: H) -> anyhow::Result<Self> {
         let node_config = load_config(Some(path))?;
-        Self::from_config(node_config)
+        Self::from_config(node_config, handler)
     }
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new(handler: H) -> anyhow::Result<Self> {
         let node_config = load_config(None)?;
-        Self::from_config(node_config)
+        Self::from_config(node_config, handler)
     }
 
     pub fn command_sender(&self) -> mpsc::Sender<ChatCommand> {
         self.command_tx.clone()
     }
 
-    pub async fn run(mut self) -> anyhow::Result<()> {
+    pub async fn run(&mut self) -> anyhow::Result<()> {
         let peer_id_str = self.peer_id.to_string();
         let mut tx = self.command_sender();
 
@@ -104,10 +126,13 @@ impl ClientNode {
                         }
                         ChatCommand::Publish(topic_name, msg) => {
                             let topic = Topic::new(topic_name);
-                            println!("🟢 Publishing: {}", String::from_utf8_lossy(&msg));
+                            println!("🟢 Publishing: {} with topic {:?}", String::from_utf8_lossy(&msg), topic.clone());
                             if self.swarm.behaviour_mut().gossipsub.publish(topic.clone(), msg).is_ok() {
                                 println!("📤 Published to topic: {topic}");
                             }
+                        }
+                        other => {
+                            println!("❌ Command not supported {:?}", other);
                         }
                     }
                 }
@@ -120,10 +145,18 @@ impl ClientNode {
                             println!("✅ Connected to: {peer_id}");
                         }
                         SwarmEvent::Behaviour(NodeBehaviourEvent::Gossipsub(gossipsub::Event::Message { propagation_source, message_id, message })) => {
-                            println!(
-                                "📨 Got message: '{}' from {propagation_source} (id: {message_id})",
-                                String::from_utf8_lossy(&message.data)
-                            );
+                            let response_command = self.handler.handle_message(propagation_source,&message.data.clone());
+                            if let Some(command) = response_command {
+                                if let Err(er) = self.command_tx.send(command.clone()).await {
+                                    println!("❌ Failed to send command: {er}");;
+                                }
+                            } else {
+                                println!(
+                                    "📨 Got message: '{}' from {propagation_source} (id: {message_id})",
+                                    String::from_utf8_lossy(&message.data.clone())
+                                );
+                            }
+
                         }
                         SwarmEvent::Behaviour(NodeBehaviourEvent::Kademlia(event)) => {
                             println!("🧠 Kademlia event: {:?}", event);

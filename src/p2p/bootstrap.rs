@@ -73,10 +73,12 @@ impl BootstrapServer {
                                                                                  propagation_source: peer_id,
                                                                                  message_id: id,
                                                                                  message,
-                                                                             })) => println!(
-                    "Got message: '{}' with id: {id} from peer: {peer_id}",
-                    String::from_utf8_lossy(&message.data),
-                ),
+                                                                             })) => {
+                    println!(
+                        "Server: Got message: '{}' with id: {id} from peer: {peer_id}",
+                        String::from_utf8_lossy(&message.data),
+                    );
+                },
 
                 SwarmEvent::Behaviour(BootstrapNodeBehaviourEvent::Kademlia(kad::Event::InboundRequest { request })) => {
                     println!("🔗 FIND NODE command detected");
