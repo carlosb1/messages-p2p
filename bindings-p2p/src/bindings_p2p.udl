@@ -1,0 +1,15 @@
+namespace bindings_p2p {
+    void start();
+    void set_listener(EventListener listener);
+    void send_message(string topic, string message);
+};
+
+dictionary Event {
+    string topic;
+    string message;
+};
+
+[Trait, WithForeign]
+interface EventListener {
+    string on_event(Event event);
+};

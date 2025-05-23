@@ -1,0 +1,24 @@
+[package]
+name = "bindings-p2p"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "bindings_p2p"
+crate-type = ["cdylib"]
+
+[[bin]]
+# This can be whatever name makes sense for your project, but the rest of this tutorial assumes uniffi-bindgen.
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+
+[dependencies]
+uniffi = { version = "0.29.2", features = ["cli"] }
+messages-p2p = { path = "../messages-p2p" }
+env_logger = "0.11.8"
+log = "0.4.27"
+android_logger = "0.15.0"
+tokio = { version = "1.45.0", features = ["rt"] }
+
+[build-dependencies]
+uniffi = { version = "0.29.2", features = ["build"] }

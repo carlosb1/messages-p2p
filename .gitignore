@@ -1,4 +1,3 @@
-/target
+target
 .idea
-.git
 temp_config.toml
