@@ -1,5 +1,5 @@
 namespace bindings_p2p {
-    void start();
+    void start(string server_address, string peer_id, string username);
     void set_listener(EventListener listener);
     void send_message(string topic, string message);
 };

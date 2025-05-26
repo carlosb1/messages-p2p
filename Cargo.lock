@@ -389,6 +389,7 @@ dependencies = [
  "env_logger",
  "log",
  "messages-p2p",
+ "rand 0.9.1",
  "tokio",
  "uniffi",
 ]

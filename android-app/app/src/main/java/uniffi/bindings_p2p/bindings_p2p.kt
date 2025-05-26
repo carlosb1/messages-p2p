@@ -827,7 +827,7 @@ fun uniffi_bindings_p2p_fn_func_send_message(`topic`: RustBuffer.ByValue,`messag
 ): Unit
 fun uniffi_bindings_p2p_fn_func_set_listener(`listener`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
-fun uniffi_bindings_p2p_fn_func_start(uniffi_out_err: UniffiRustCallStatus, 
+fun uniffi_bindings_p2p_fn_func_start(`serverAddress`: RustBuffer.ByValue,`peerId`: RustBuffer.ByValue,`username`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
 fun ffi_bindings_p2p_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -961,7 +961,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_bindings_p2p_checksum_func_set_listener() != 36803.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_bindings_p2p_checksum_func_start() != 19397.toShort()) {
+    if (lib.uniffi_bindings_p2p_checksum_func_start() != 2884.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_bindings_p2p_checksum_method_eventlistener_on_event() != 4519.toShort()) {
@@ -1515,11 +1515,11 @@ public object FfiConverterTypeEvent: FfiConverterRustBuffer<Event> {
 }
     
     
- fun `start`()
+ fun `start`(`serverAddress`: kotlin.String, `peerId`: kotlin.String, `username`: kotlin.String)
         = 
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_bindings_p2p_fn_func_start(
-        _status)
+        FfiConverterString.lower(`serverAddress`),FfiConverterString.lower(`peerId`),FfiConverterString.lower(`username`),_status)
 }
     
     
