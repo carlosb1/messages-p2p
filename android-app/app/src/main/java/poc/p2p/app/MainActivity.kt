@@ -1,6 +1,8 @@
 package poc.p2p.app
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -34,8 +36,28 @@ class MainActivity : AppCompatActivity() {
     private lateinit var publicKeyInput: EditText
     private lateinit var usernameInput: EditText
 
+    private fun handleIncomingLink(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (!sharedText.isNullOrEmpty()) {
+                Log.d("Compartido", "Texto recibido: $sharedText")
+            }
+        }
+    }
+
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIncomingLink(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        handleIncomingLink(intent);
+
+
+
 
         // Carga el layout base
         setContentView(buildUI())
